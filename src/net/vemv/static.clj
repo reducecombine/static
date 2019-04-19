@@ -3,14 +3,13 @@
    [clojure.walk :as walk]))
 
 (defn type-of [x]
-  (-> {`do       ::identity
-       `identity ::identity
-       `str      String
-       `boolean  Boolean
-       `double   Double
-       `byte     Byte
-       `int      Long}
-      (get x ::unknown)))
+  (or (some-> x resolve meta :tag)
+      (-> {`do       ::identity
+           `identity ::identity
+           `double   Double
+           `boolean  Boolean
+           `int      Long}
+          (get x ::unknown))))
 
 (defn derive-type
   ([x]
