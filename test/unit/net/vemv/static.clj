@@ -58,7 +58,36 @@
                           (byte x)))
                (double)))))),   #{Long Boolean Double String}
 
-    ;; https://github.com/athos/symbol-analyzer ?
-    #_`(defn foo [x]
-         (let [y (str x)]
-           y)),                 #_String))
+    '(defn foo [x]
+       (let [y (str x)]
+         y)),                   #{String}))
+
+(deftest analyze*
+  (are [input expected] (testing input
+                          (is (= expected
+                                 (sut/analyze* input)))
+                          true)
+
+    '(let [x (-> 1)]
+       (-> x))                   #{java.lang.Long}
+
+
+    `(do 1)                      #{java.lang.Long}
+    `(-> 1)                      #{java.lang.Long}
+
+    '(let [x (-> 1)]
+       x)                        #{java.lang.Long}
+
+    '(let [x (Thread.)]
+       x)                        #{java.lang.Thread}
+
+
+    '(let [x (str a v)]
+       x)                        #{java.lang.String}
+
+    '(let [^Thread x foo]
+       x)                        #{java.lang.Thread}
+
+    '(Thread.)                   #{java.lang.Thread}
+
+    (with-meta 'x {:tag Thread}) #{java.lang.Thread}))
