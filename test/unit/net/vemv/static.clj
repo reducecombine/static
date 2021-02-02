@@ -62,6 +62,9 @@
        (let [y (str x)]
          y)),                   #{String}))
 
+(defn tag-example ^String [k]
+  "")
+
 (deftest analyze*
   (are [input expected] (testing input
                           (is (= expected
@@ -92,4 +95,6 @@
 
     ;; user-provided meta takes precedence over ns-resolved meta:
     '(let [^Thread x (str)]
-       x)                        #{java.lang.Thread}))
+       x)                        #{java.lang.Thread}
+
+    `tag-example                 #{java.lang.String}))

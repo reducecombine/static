@@ -28,7 +28,9 @@
   (or (and (instance? IObj x)
            (or (some-> x meta :tag process-tag resolve)
                (and (symbol? x)
-                    (some-> x resolve meta :tag process-tag resolve))))
+                    (some-> x resolve meta :tag process-tag resolve))
+               (and (symbol? x)
+                    (some->> x resolve meta :arglists (map meta) (keep :tag) (keep process-tag) (some resolve)))))
       (-> {`do       ::identity
            `identity ::identity
            `double   Double
