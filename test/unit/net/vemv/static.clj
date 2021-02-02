@@ -1,6 +1,6 @@
 (ns unit.net.vemv.static
   (:require
-   [clojure.test :refer :all]
+   [clojure.test :refer [are deftest is testing]]
    [net.vemv.static :as sut]))
 
 (deftest analyze
@@ -71,7 +71,6 @@
     '(let [x (-> 1)]
        (-> x))                   #{java.lang.Long}
 
-
     `(do 1)                      #{java.lang.Long}
     `(-> 1)                      #{java.lang.Long}
 
@@ -81,7 +80,6 @@
     '(let [x (Thread.)]
        x)                        #{java.lang.Thread}
 
-
     '(let [x (str a v)]
        x)                        #{java.lang.String}
 
@@ -90,4 +88,8 @@
 
     '(Thread.)                   #{java.lang.Thread}
 
-    (with-meta 'x {:tag Thread}) #{java.lang.Thread}))
+    (with-meta 'x {:tag Thread}) #{java.lang.Thread}
+
+    ;; user-provided meta takes precedence over ns-resolved meta:
+    '(let [^Thread x (str)]
+       x)                        #{java.lang.Thread}))

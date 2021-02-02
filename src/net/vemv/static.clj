@@ -1,14 +1,14 @@
 (ns net.vemv.static
   (:require
    [clojure.walk :as walk]
-   [nedap.speced.def :as speced]))
+   [nedap.speced.def :as speced])
+  (:import
+   (clojure.lang IObj)))
 
 ;; https://github.com/athos/symbol-analyzer
 
-
 ;; XXX this is the most important case:
 ;; (-> x .foo .bar .baz) (involves analyzing the return values of these methods)
-
 
 (defn process-tag [x]
   (cond
@@ -25,9 +25,10 @@
        (-> x str last #{\.})))
 
 (defn type-of [x]
-  (or (and (symbol? x)
+  (or (and (instance? IObj x)
            (or (some-> x meta :tag process-tag resolve)
-               (some-> x resolve meta :tag process-tag resolve)))
+               (and (symbol? x)
+                    (some-> x resolve meta :tag process-tag resolve))))
       (-> {`do       ::identity
            `identity ::identity
            `double   Double
@@ -197,4 +198,7 @@
 
 (comment
   (analyze* '(let [^Thread x (str)] ;; NOK; meta should take precedence
-               x)))
+               x))
+
+  (unlet  '(let [^Thread x (str)] ;; NOK; meta should take precedence
+             x)))
