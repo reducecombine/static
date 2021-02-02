@@ -64,15 +64,15 @@
   (parse-symbol 'Math/abs)
   (parse-symbol (with-meta 'x {:tag Thread})))
 
-(defn ^class? infer-call [[method object]]
-  (speced/let [^class? class (some-> object meta :tag process-tag resolve)
+(defn ^::speced/nilable ^class? infer-call [[method object]]
+  (speced/let [^::speced/nilable ^class? class (some-> object meta :tag process-tag resolve)
                m (->> method str rest (apply str))]
-    (->> class
-         .getMethods
-         (filter (speced/fn [^Method method]
-                   (-> method .getName #{m})))
-         ^Method (first)
-         .getReturnType)))
+    (some->> class
+             .getMethods
+             (filter (speced/fn [^Method method]
+                       (-> method .getName #{m})))
+             ^Method (first)
+             .getReturnType)))
 
 (speced/defn ^vector? type-of [x]
   (or (and (instance? IObj x)
@@ -192,6 +192,30 @@
                           x
                           (let [bindings (second x)
                                 syms (->> bindings (partition 2) (map first))
+                                syms-set (set syms)
+                                syms->tags (->> bindings
+                                                (partition 2)
+                                                (map (fn [[l r]]
+                                                       [l (or (-> l meta :tag process-tag)
+                                                              (some->> r type-of (remove #{::unknown}) first))]))
+                                                (into {}))
+                                enhanced-bindings (->> bindings
+                                                       (partition 2)
+                                                       (mapv (fn [[l r]]
+                                                               [l (->> r
+                                                                       (walk/postwalk (fn [x]
+                                                                                        (if-not (syms-set x)
+                                                                                          x
+                                                                                          (if (-> x meta :tag)
+                                                                                            x
+                                                                                            (if-let [t (get syms->tags x)]
+                                                                                              (vary-meta x
+                                                                                                         assoc
+                                                                                                         :tag
+                                                                                                         t)
+                                                                                              x))))))]))
+                                                       (apply concat)
+                                                       vec)
                                 all-syms (atom #{})]
                             (->> syms
                                  (walk/postwalk (fn [s]
@@ -204,7 +228,7 @@
                                                              (if-not (symbol? i)
                                                                i
                                                                (let [s (try
-                                                                         (value-of-local-binding bindings i)
+                                                                         (value-of-local-binding enhanced-bindings i)
                                                                          ;; XXX works but not very efficient:
                                                                          (catch clojure.lang.Compiler$CompilerException _
                                                                            i))

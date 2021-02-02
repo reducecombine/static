@@ -110,5 +110,13 @@
                                            Double/TYPE
                                            Long/TYPE}
 
-    '(let [y (-> ^Thread x .toString)]
-       y)                                #{java.lang.String}))
+    '(let [y (-> ^Thread x .getContextClassLoader)]
+       y)                                #{java.lang.ClassLoader}
+
+    '(let [^Thread x foo
+           y (-> x .getContextClassLoader)]
+       y)                                #{java.lang.ClassLoader}
+
+    '(let [x (Thread.)
+           y (-> x .getContextClassLoader)]
+       y)                                #{java.lang.ClassLoader}))
