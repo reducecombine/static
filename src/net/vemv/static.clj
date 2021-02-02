@@ -25,6 +25,10 @@
   (and (symbol? x)
        (-> x str last #{\.})))
 
+(defn method-call-sym? [x]
+  (and (symbol? x)
+       (-> x str first #{\.})))
+
 (defn tag-example ^String [k]
   "")
 
@@ -60,6 +64,16 @@
   (parse-symbol 'Math/abs)
   (parse-symbol (with-meta 'x {:tag Thread})))
 
+(defn ^class? infer-call [[method object]]
+  (speced/let [^class? class (some-> object meta :tag process-tag resolve)
+               m (->> method str rest (apply str))]
+    (->> class
+         .getMethods
+         (filter (speced/fn [^Method method]
+                   (-> method .getName #{m})))
+         ^Method (first)
+         .getReturnType)))
+
 (speced/defn ^vector? type-of [x]
   (or (and (instance? IObj x)
            (some-> x meta :tag process-tag resolve vector not-empty))
@@ -77,6 +91,11 @@
                    (and (seq? x)
                         (-> x first ctor-sym?))
                    (-> x first ctor-sym->class-sym resolve vector)
+
+                   (and (seq? x)
+                        (-> x first method-call-sym?)
+                        (-> x last meta :tag))
+                   [(infer-call x)]
 
                    (not (seq? x)) ;; allow processing of `do`, `if`
                    [(class x)]

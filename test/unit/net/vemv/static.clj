@@ -108,4 +108,7 @@
     '(let [y (-> x str str Math/abs)] y) #{Integer/TYPE
                                            Float/TYPE
                                            Double/TYPE
-                                           Long/TYPE}))
+                                           Long/TYPE}
+
+    '(let [y (-> ^Thread x .toString)]
+       y)                                #{java.lang.String}))
