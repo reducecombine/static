@@ -3,7 +3,8 @@
    [clojure.walk :as walk]
    [nedap.speced.def :as speced])
   (:import
-   (clojure.lang IObj)))
+   (clojure.lang IObj)
+   (java.lang.reflect Method)))
 
 ;; https://github.com/athos/symbol-analyzer
 
@@ -24,39 +25,75 @@
   (and (symbol? x)
        (-> x str last #{\.})))
 
-(defn type-of [x]
+(defn tag-example ^String [k]
+  "")
+
+(speced/defn ret-val-of-clj-sym [^symbol? x]
+  (or (some-> x resolve meta :tag process-tag resolve vector)
+      (some->> x resolve meta :arglists (map meta) (keep :tag) (keep process-tag) (keep resolve) (vec))))
+
+(speced/defn parse-symbol [^symbol? x]
+  (let [has-slash? (->> x str (re-find #"/"))
+        resolution (resolve x)]
+    (cond
+      resolution       [x (ret-val-of-clj-sym x)]
+      has-slash?       (speced/let [[class method-name]  (-> x str (clojure.string/split #"/"))
+                                    ^::speced/nilable ^Class rc (some-> class symbol resolve)]
+                         (when rc
+                           [rc
+                            (->> rc
+                                 (.getMethods)
+                                 (filterv (speced/fn [^Method m]
+                                            (-> m .getName #{method-name})))
+                                 (mapv (speced/fn [^Method m]
+                                         (-> m .getReturnType))))]))
+      (not resolution) [x (ret-val-of-clj-sym x)]
+      true             nil)))
+
+(comment
+  (-> #'+ meta)
+  (parse-symbol `+) ;; XXX + is not introspectable. one could introspect the source?
+  (parse-symbol '+)
+  (parse-symbol 'tag-example)
+  (parse-symbol 'str)
+  (parse-symbol `str)
+  (parse-symbol 'Math/abs)
+  (parse-symbol (with-meta 'x {:tag Thread})))
+
+(speced/defn ^vector? type-of [x]
   (or (and (instance? IObj x)
-           (or (some-> x meta :tag process-tag resolve)
-               (and (symbol? x)
-                    (some-> x resolve meta :tag process-tag resolve))
-               (and (symbol? x)
-                    (some->> x resolve meta :arglists (map meta) (keep :tag) (keep process-tag) (some resolve)))))
-      (-> {`do       ::identity
-           `identity ::identity
-           `double   Double
-           `boolean  Boolean
-           `int      Long}
+           (some-> x meta :tag process-tag resolve vector not-empty))
+      (and (symbol? x)
+           (some-> x parse-symbol second not-empty))
+      (-> {`do       [::identity]
+           `identity [::identity]
+           `double   [Double]
+           `boolean  [Boolean]
+           `int      [Long]}
           (get x (cond
                    (symbol? x)
-                   ::unknown
+                   [::unknown]
 
                    (and (seq? x)
                         (-> x first ctor-sym?))
-                   (-> x first ctor-sym->class-sym resolve)
+                   (-> x first ctor-sym->class-sym resolve vector)
 
                    (not (seq? x)) ;; allow processing of `do`, `if`
-                   (class x)
+                   [(class x)]
 
                    true
-                   nil)))))
+                   [])))))
 
 (defn derive-type
+  ([]
+   nil)
+
   ([x]
    x)
 
   ([x y]
    (cond
-     (= y ::identity)
+     (= y [::identity])
      x
 
      true
@@ -166,11 +203,11 @@
 (speced/defn analyze* [target]
   (letfn [(do-process [x acc]
             (let [t (type-of x)]
-              (if-not (contains? #{::unknown nil} t)
+              (if-not (contains? #{[::unknown] []} t)
                 (conj acc t)
                 (if (sequential? x)
                   (process x do-process acc)
-                  (conj acc ::unknown)))))]
+                  acc))))]
     (let [final-target (-> target unthread unlet)]
       (->> (do-process final-target [])
            (reverse)
@@ -197,10 +234,3 @@
 
 (comment
   (unlet '(let [a + x a] (x 1 1) (x 1 1) x)))
-
-(comment
-  (analyze* '(let [^Thread x (str)] ;; NOK; meta should take precedence
-               x))
-
-  (unlet  '(let [^Thread x (str)] ;; NOK; meta should take precedence
-             x)))

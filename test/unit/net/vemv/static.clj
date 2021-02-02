@@ -72,29 +72,40 @@
                           true)
 
     '(let [x (-> 1)]
-       (-> x))                   #{java.lang.Long}
+       (-> x))                           #{java.lang.Long}
 
-    `(do 1)                      #{java.lang.Long}
-    `(-> 1)                      #{java.lang.Long}
+    `(do 1)                              #{java.lang.Long}
+    `(-> 1)                              #{java.lang.Long}
 
     '(let [x (-> 1)]
-       x)                        #{java.lang.Long}
+       x)                                #{java.lang.Long}
 
     '(let [x (Thread.)]
-       x)                        #{java.lang.Thread}
+       x)                                #{java.lang.Thread}
 
     '(let [x (str a v)]
-       x)                        #{java.lang.String}
+       x)                                #{java.lang.String}
+
+    '(let [x (Math/abs y)]
+       x)                                #{Integer/TYPE
+                                           Float/TYPE
+                                           Double/TYPE
+                                           Long/TYPE}
 
     '(let [^Thread x foo]
-       x)                        #{java.lang.Thread}
+       x)                                #{java.lang.Thread}
 
-    '(Thread.)                   #{java.lang.Thread}
+    '(Thread.)                           #{java.lang.Thread}
 
-    (with-meta 'x {:tag Thread}) #{java.lang.Thread}
+    (with-meta 'x {:tag Thread})         #{java.lang.Thread}
 
     ;; user-provided meta takes precedence over ns-resolved meta:
     '(let [^Thread x (str)]
-       x)                        #{java.lang.Thread}
+       x)                                #{java.lang.Thread}
 
-    `tag-example                 #{java.lang.String}))
+    `tag-example                         #{java.lang.String}
+
+    '(let [y (-> x str str Math/abs)] y) #{Integer/TYPE
+                                           Float/TYPE
+                                           Double/TYPE
+                                           Long/TYPE}))
