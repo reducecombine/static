@@ -195,6 +195,13 @@
                                 syms-set (set syms)
                                 syms->tags (->> bindings
                                                 (partition 2)
+                                                ;; XXX this fails to account for prior results
+                                                ;; it should be built incrementally i.e.:
+                                                ;; - enhance first row using [] as a baseline
+                                                ;; - enhance second row using [first-row] as a baseline
+                                                ;; - enhance third row using [first-row second-row] as a baseline, etc.
+
+                                                ;; basically syms->tags <-> enhanced-bindings should be interleaved instead of invoked sequentially
                                                 (map (fn [[l r]]
                                                        [l (or (-> l meta :tag process-tag)
                                                               (some->> r type-of (remove #{::unknown}) first))]))

@@ -119,4 +119,9 @@
 
     '(let [x (Thread.)
            y (-> x .getContextClassLoader)]
-       y)                                #{java.lang.ClassLoader}))
+       y)                                #{java.lang.ClassLoader}
+
+    '(let [x (Thread.)
+           y (.getContextClassLoader x)
+           z (.getResourceAsStream y "dfsf")]
+       z)                                1))
